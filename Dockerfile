@@ -1,21 +1,23 @@
 # ---- Build stage ----
-  FROM node:20-alpine AS builder
+  FROM node:20-slim AS builder
   WORKDIR /app
 
-  # Install dependencies first (better layer caching)
+  # Some native deps want build tools at install time
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 make g++ \
+      && rm -rf /var/lib/apt/lists/*
+
   COPY package*.json ./
   RUN npm ci
 
-  # Copy the rest of your source and build
   COPY . .
   RUN npm run build
 
   # ---- Runtime stage ----
-  FROM node:20-alpine
+  FROM node:20-slim
   WORKDIR /app
   ENV NODE_ENV=production
 
-  # Copy only what's needed to run
   COPY --from=builder /app/.next ./.next
   COPY --from=builder /app/public ./public
   COPY --from=builder /app/package*.json ./
